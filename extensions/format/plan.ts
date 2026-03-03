@@ -5,22 +5,22 @@ export const FORMAT_PLAN: Record<FileKind, RunnerGroup[]> = {
   cmake: [{ mode: "all", runnerIds: ["cmake-format"] }],
   markdown: [
     {
-      mode: "all",
-      runnerIds: ["markdownlint-fix", "prettier-markdown"],
+      mode: "fallback",
+      runnerIds: ["prettier", "markdownlint"],
     },
   ],
   json: [
     {
       mode: "fallback",
-      runnerIds: ["biome-check-write", "prettier-config-write"],
+      runnerIds: ["biome", "prettier"],
     },
   ],
   shell: [{ mode: "all", runnerIds: ["shfmt"] }],
-  python: [{ mode: "all", runnerIds: ["ruff-format", "ruff-check-fix"] }],
+  python: [{ mode: "all", runnerIds: ["ruff-format", "ruff-check"] }],
   jsts: [
     {
       mode: "fallback",
-      runnerIds: ["biome-check-write", "eslint-fix", "prettier-config-write"],
+      runnerIds: ["biome", "eslint", "prettier"],
     },
   ],
 };

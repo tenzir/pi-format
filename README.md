@@ -31,6 +31,7 @@ Supported file types:
 ## 🔧 Configuration
 
 - `PI_FORMAT_COMMAND_TIMEOUT_MS`: timeout (ms) per formatter command (default: `10000`)
+- `PI_FORMAT_SHOW_CALL_SUMMARIES_IN_TUI`: show formatter pass/fail summaries in the TUI (`1`, `true`, `yes`, `on`; default: on)
 
 ## 🧩 Contributor docs
 

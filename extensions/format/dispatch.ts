@@ -1,27 +1,17 @@
-import type { ExtensionAPI, ExecResult } from "@mariozechner/pi-coding-agent";
-import { FormatRunContext } from "./context.js";
+import type { ExecResult, ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import { FormatRunContext, type FormatWarningReporter } from "./context.js";
 import { detectFileKind } from "./path.js";
 import { FORMAT_PLAN } from "./plan.js";
 import { RUNNERS } from "./runners/index.js";
 import {
   isDynamicRunner,
   type ResolvedLauncher,
+  type RunnerContext,
   type RunnerDefinition,
   type RunnerGroup,
   type RunnerLauncher,
-  type RunnerContext,
   type SourceTool,
 } from "./types.js";
-
-function summarizeExecResult(result: ExecResult): string {
-  const output = `${result.stderr}\n${result.stdout}`.trim();
-  if (!output) {
-    return "";
-  }
-
-  const firstLine = output.split(/\r?\n/, 1)[0];
-  return `: ${firstLine}`;
-}
 
 async function resolveLauncher(
   launcher: RunnerLauncher,
@@ -93,15 +83,17 @@ async function satisfiesRunnerRequirements(
     const onInvalid = requirement.onInvalid ?? "warn-skip";
     if (onInvalid === "warn-skip") {
       ctx.warn(
-        `[pi-formatter] ${runner.id} skipped: invalid version requirement in ${requirement.patterns.join(", ")}`,
+        `${runner.id} skipped: invalid version requirement in ${requirement.patterns.join(", ")}`,
       );
     }
 
     return false;
   }
 
-  const versionCommand = requirement.command ?? defaultVersionCommand(runner.launcher);
-  const installedVersion = await ctx.getInstalledToolMajorVersion(versionCommand);
+  const versionCommand =
+    requirement.command ?? defaultVersionCommand(runner.launcher);
+  const installedVersion =
+    await ctx.getInstalledToolMajorVersion(versionCommand);
 
   if (installedVersion === requiredVersion) {
     return true;
@@ -110,7 +102,7 @@ async function satisfiesRunnerRequirements(
   const onMismatch = requirement.onMismatch ?? "warn-skip";
   if (onMismatch === "warn-skip") {
     ctx.warn(
-      `[pi-formatter] ${runner.id} skipped: ${versionCommand} version mismatch (have ${installedVersion ?? "unknown"}, need ${requiredVersion})`,
+      `${runner.id} skipped: ${versionCommand} version mismatch (have ${installedVersion ?? "unknown"}, need ${requiredVersion})`,
     );
   }
 
@@ -135,9 +127,51 @@ async function resolveRunnerArgs(
 
 type RunnerOutcome = "skipped" | "failed" | "succeeded";
 
+export interface FormatCallSummary {
+  runnerId: string;
+  status: "succeeded" | "failed";
+  exitCode?: number;
+  failureMessage?: string;
+}
+
+export type FormatCallSummaryReporter = (summary: FormatCallSummary) => void;
+
+const MAX_FAILURE_MESSAGE_LENGTH = 140;
+
+function normalizeFailureLine(line: string): string {
+  return line
+    .replace(/\x1b\[[0-9;]*m/g, "")
+    .replace(/^\s*\[error\]\s*/i, "")
+    .replace(/^\s*error:\s*/i, "")
+    .replace(/^\s*[×✖✘]\s*/u, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function summarizeFailureMessage(result: ExecResult): string | undefined {
+  const lines = `${result.stderr}\n${result.stdout}`
+    .split(/\r?\n/)
+    .map((line) => normalizeFailureLine(line))
+    .filter((line) => line.length > 0);
+
+  if (lines.length === 0) {
+    return undefined;
+  }
+
+  const withMarker = lines.find((line) =>
+    /\b(error|failed|invalid|unexpected|expected|syntax)\b/i.test(line),
+  );
+  const message = withMarker ?? lines[0];
+
+  return message.length <= MAX_FAILURE_MESSAGE_LENGTH
+    ? message
+    : `${message.slice(0, MAX_FAILURE_MESSAGE_LENGTH - 1)}…`;
+}
+
 async function runRunner(
   ctx: RunnerContext,
   runner: RunnerDefinition,
+  summaryReporter?: FormatCallSummaryReporter,
 ): Promise<RunnerOutcome> {
   const launcher = await resolveLauncher(runner.launcher, ctx);
   if (!launcher) {
@@ -157,18 +191,38 @@ async function runRunner(
     return "skipped";
   }
 
-  const result = await ctx.exec(launcher.command, [...launcher.argsPrefix, ...args]);
+  const commandArgs = [...launcher.argsPrefix, ...args];
+
+  const result = await ctx.exec(launcher.command, commandArgs);
   if (!result) {
-    ctx.warn(`[pi-formatter] ${runner.id} failed to execute`);
+    summaryReporter?.({
+      runnerId: runner.id,
+      status: "failed",
+    });
+    ctx.warn(`${runner.id} failed to execute`);
     return "failed";
   }
 
   if (result.code !== 0) {
+    const failureMessage = summarizeFailureMessage(result);
+
+    summaryReporter?.({
+      runnerId: runner.id,
+      status: "failed",
+      exitCode: result.code,
+      failureMessage,
+    });
+
     ctx.warn(
-      `[pi-formatter] ${runner.id} exited with code ${result.code}${summarizeExecResult(result)}`,
+      `${runner.id} failed (${result.code})${failureMessage ? `: ${failureMessage}` : ""}`,
     );
     return "failed";
   }
+
+  summaryReporter?.({
+    runnerId: runner.id,
+    status: "succeeded",
+  });
 
   return "succeeded";
 }
@@ -176,32 +230,63 @@ async function runRunner(
 async function runRunnerGroup(
   ctx: RunnerContext,
   group: RunnerGroup,
+  summaryReporter?: FormatCallSummaryReporter,
 ): Promise<void> {
   if (group.mode === "all") {
     for (const runnerId of group.runnerIds) {
       const runner = RUNNERS.get(runnerId);
       if (!runner) {
-        ctx.warn(`[pi-formatter] unknown runner in format plan: ${runnerId}`);
+        ctx.warn(`unknown runner in format plan: ${runnerId}`);
         continue;
       }
 
-      await runRunner(ctx, runner);
+      await runRunner(ctx, runner, summaryReporter);
     }
 
     return;
   }
 
+  const fallbackSummaries: FormatCallSummary[] = [];
+  const fallbackSummaryReporter = summaryReporter
+    ? (summary: FormatCallSummary) => {
+        fallbackSummaries.push(summary);
+      }
+    : undefined;
+
   for (const runnerId of group.runnerIds) {
     const runner = RUNNERS.get(runnerId);
     if (!runner) {
-      ctx.warn(`[pi-formatter] unknown runner in format plan: ${runnerId}`);
+      ctx.warn(`unknown runner in format plan: ${runnerId}`);
       continue;
     }
 
-    const outcome = await runRunner(ctx, runner);
+    const outcome = await runRunner(ctx, runner, fallbackSummaryReporter);
     if (outcome === "succeeded") {
-      break;
+      if (!summaryReporter) {
+        return;
+      }
+
+      const successSummary = [...fallbackSummaries]
+        .reverse()
+        .find((summary) => summary.status === "succeeded");
+      if (successSummary) {
+        summaryReporter(successSummary);
+      }
+
+      return;
     }
+  }
+
+  if (!summaryReporter) {
+    return;
+  }
+
+  const lastFailureSummary = [...fallbackSummaries]
+    .reverse()
+    .find((summary) => summary.status === "failed");
+
+  if (lastFailureSummary) {
+    summaryReporter(lastFailureSummary);
   }
 }
 
@@ -211,6 +296,8 @@ export async function formatFile(
   sourceTool: SourceTool,
   filePath: string,
   timeoutMs: number,
+  summaryReporter?: FormatCallSummaryReporter,
+  warningReporter?: FormatWarningReporter,
 ): Promise<void> {
   const kind = detectFileKind(filePath);
   if (!kind) {
@@ -229,9 +316,10 @@ export async function formatFile(
     sourceTool,
     kind,
     timeoutMs,
+    warningReporter,
   );
 
   for (const group of groups) {
-    await runRunnerGroup(runContext, group);
+    await runRunnerGroup(runContext, group, summaryReporter);
   }
 }

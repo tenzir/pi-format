@@ -1,9 +1,9 @@
 import { defineRunner, direct } from "./helpers.js";
 
-const markdownlintFixRunner = defineRunner({
-  id: "markdownlint-fix",
+const markdownlintRunner = defineRunner({
+  id: "markdownlint",
   launcher: direct("markdownlint"),
   args: ["--fix"],
 });
 
-export default markdownlintFixRunner;
+export default markdownlintRunner;

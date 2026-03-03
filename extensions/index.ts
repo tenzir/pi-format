@@ -1,11 +1,35 @@
+import { basename } from "node:path";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { commandTimeoutMs } from "./format/config.js";
-import { formatFile } from "./format/dispatch.js";
-import { pathExists, resolveToolPath } from "./format/path.js";
+import { commandTimeoutMs, showCallSummariesInTui } from "./format/config.js";
+import { type FormatCallSummary, formatFile } from "./format/dispatch.js";
+import { getPathForGit, pathExists, resolveToolPath } from "./format/path.js";
 import type { SourceTool } from "./format/types.js";
 
 function formatError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function formatSummaryPath(filePath: string, cwd: string): string {
+  const pathForDisplay = getPathForGit(filePath, cwd);
+  return pathForDisplay.startsWith("/")
+    ? basename(pathForDisplay)
+    : pathForDisplay;
+}
+
+function formatCallSuccessSummary(summary: FormatCallSummary): string {
+  return `✔︎ ${summary.runnerId}`;
+}
+
+function formatCallFailureSummary(summary: FormatCallSummary): string {
+  if (summary.failureMessage) {
+    return `✘ ${summary.runnerId}: ${summary.failureMessage}`;
+  }
+
+  if (summary.exitCode !== undefined) {
+    return `✘ ${summary.runnerId} (exit ${summary.exitCode})`;
+  }
+
+  return `✘ ${summary.runnerId}`;
 }
 
 export default function (pi: ExtensionAPI) {
@@ -52,13 +76,59 @@ export default function (pi: ExtensionAPI) {
       return;
     }
 
+    const showSummaries = showCallSummariesInTui && ctx.hasUI;
+    const notifyWarning = (message: string) => {
+      const normalizedMessage = message.replace(/\s+/g, " ").trim();
+
+      if (ctx.hasUI) {
+        ctx.ui.notify(normalizedMessage, "warning");
+        return;
+      }
+
+      console.warn(normalizedMessage);
+    };
+
     await enqueueFormat(filePath, async () => {
+      const summaries: FormatCallSummary[] = [];
+      const summaryReporter = showSummaries
+        ? (summary: FormatCallSummary) => {
+            summaries.push(summary);
+          }
+        : undefined;
+
+      const runnerWarningReporter =
+        showSummaries && ctx.hasUI
+          ? () => {
+              // Summary mode already reports failures compactly.
+            }
+          : notifyWarning;
+
       try {
-        await formatFile(pi, ctx.cwd, sourceTool, filePath, commandTimeoutMs);
-      } catch (error) {
-        console.warn(
-          `[pi-formatter] Failed to format ${filePath}: ${formatError(error)}`,
+        await formatFile(
+          pi,
+          ctx.cwd,
+          sourceTool,
+          filePath,
+          commandTimeoutMs,
+          summaryReporter,
+          runnerWarningReporter,
         );
+      } catch (error) {
+        const fileLabel = formatSummaryPath(filePath, ctx.cwd);
+        notifyWarning(`Failed to format ${fileLabel}: ${formatError(error)}`);
+      }
+
+      if (!showSummaries || summaries.length === 0) {
+        return;
+      }
+
+      for (const summary of summaries) {
+        if (summary.status === "succeeded") {
+          ctx.ui.notify(formatCallSuccessSummary(summary), "info");
+          continue;
+        }
+
+        ctx.ui.notify(formatCallFailureSummary(summary), "info");
       }
     });
   });

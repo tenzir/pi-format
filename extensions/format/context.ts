@@ -3,7 +3,12 @@ import { dirname, join, resolve } from "node:path";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { getPathForGit, isWithinDirectory, pathExists } from "./path.js";
 import { hasCommand } from "./system.js";
-import type { FileKind, RequiredMajorVersion, RunnerContext, SourceTool } from "./types.js";
+import type {
+  FileKind,
+  RequiredMajorVersion,
+  RunnerContext,
+  SourceTool,
+} from "./types.js";
 
 const globRegexCache = new Map<string, RegExp>();
 
@@ -66,6 +71,8 @@ async function findConfigFileFromPath(
   return undefined;
 }
 
+export type FormatWarningReporter = (message: string) => void;
+
 export class FormatRunContext implements RunnerContext {
   readonly filePath: string;
   readonly cwd: string;
@@ -74,6 +81,7 @@ export class FormatRunContext implements RunnerContext {
 
   private readonly pi: ExtensionAPI;
   private readonly timeoutMs: number;
+  private readonly warningReporter?: FormatWarningReporter;
 
   private readonly configLookupCache = new Map<
     string,
@@ -98,6 +106,7 @@ export class FormatRunContext implements RunnerContext {
     sourceTool: SourceTool,
     kind: FileKind,
     timeoutMs: number,
+    warningReporter?: FormatWarningReporter,
   ) {
     this.pi = pi;
     this.cwd = cwd;
@@ -105,13 +114,16 @@ export class FormatRunContext implements RunnerContext {
     this.sourceTool = sourceTool;
     this.kind = kind;
     this.timeoutMs = timeoutMs;
+    this.warningReporter = warningReporter;
   }
 
   async hasCommand(command: string): Promise<boolean> {
     return hasCommand(command);
   }
 
-  async findConfigFile(patterns: readonly string[]): Promise<string | undefined> {
+  async findConfigFile(
+    patterns: readonly string[],
+  ): Promise<string | undefined> {
     const key = patterns.join("\u0000");
     let cached = this.configLookupCache.get(key);
 
@@ -182,6 +194,11 @@ export class FormatRunContext implements RunnerContext {
   }
 
   warn(message: string): void {
+    if (this.warningReporter) {
+      this.warningReporter(message);
+      return;
+    }
+
     console.warn(message);
   }
 

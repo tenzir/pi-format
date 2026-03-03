@@ -1,26 +1,24 @@
 import type { RunnerDefinition } from "../types.js";
-import biomeCheckWriteRunner from "./biome-check-write.js";
+import biomeRunner from "./biome.js";
 import clangFormatRunner from "./clang-format.js";
 import cmakeFormatRunner from "./cmake-format.js";
-import eslintFixRunner from "./eslint-fix.js";
-import markdownlintFixRunner from "./markdownlint-fix.js";
-import prettierConfigWriteRunner from "./prettier-config-write.js";
-import prettierMarkdownRunner from "./prettier-markdown.js";
-import ruffCheckFixRunner from "./ruff-check-fix.js";
+import eslintRunner from "./eslint.js";
+import markdownlintRunner from "./markdownlint.js";
+import prettierRunner from "./prettier.js";
+import ruffCheckRunner from "./ruff-check.js";
 import ruffFormatRunner from "./ruff-format.js";
 import shfmtRunner from "./shfmt.js";
 
 export const RUNNER_DEFINITIONS: RunnerDefinition[] = [
   clangFormatRunner,
   cmakeFormatRunner,
-  markdownlintFixRunner,
-  prettierMarkdownRunner,
-  biomeCheckWriteRunner,
-  eslintFixRunner,
-  prettierConfigWriteRunner,
+  markdownlintRunner,
+  biomeRunner,
+  eslintRunner,
+  prettierRunner,
   shfmtRunner,
   ruffFormatRunner,
-  ruffCheckFixRunner,
+  ruffCheckRunner,
 ];
 
 function buildRunnerRegistry(
