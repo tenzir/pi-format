@@ -1,0 +1,5 @@
+created: 2026-03-03
+title: Rename npm package to pi-formatter
+intro: >-
+  This release renames the npm package from pi-format to pi-formatter to resolve npm
+  package-name conflicts and keep publishing reliable.
