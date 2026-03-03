@@ -30,8 +30,17 @@ Supported file types:
 
 ## 🔧 Configuration
 
-- `PI_FORMAT_COMMAND_TIMEOUT_MS`: timeout (ms) per formatter command (default: `10000`)
-- `PI_FORMAT_SHOW_CALL_SUMMARIES_IN_TUI`: show formatter pass/fail summaries in the TUI (`1`, `true`, `yes`, `on`; default: on)
+Create `~/.pi/agent/formatter.json`:
+
+```json
+{
+  "commandTimeoutMs": 10000,
+  "hideCallSummariesInTui": false
+}
+```
+
+- `commandTimeoutMs`: timeout (ms) per formatter command (default: `10000`)
+- `hideCallSummariesInTui`: hide formatter pass/fail summaries in the TUI (default: `false`)
 
 ## 🧩 Contributor docs
 

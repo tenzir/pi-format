@@ -1,9 +1,9 @@
 ---
 title: TUI summaries for formatter pass and fail results
-type: feature
+type: change
 authors:
   - mavam
-  - claude
+  - codex
 created: 2026-03-03T18:59:29.852033Z
 ---
 
@@ -13,8 +13,10 @@ every `write` and `edit` tool call:
 - `✔︎ prettier` on success
 - `✘ biome: expected '}' but instead the file ends` on failure
 
-The summaries are on by default and can be toggled with the
-`PI_FORMAT_SHOW_CALL_SUMMARIES_IN_TUI` environment variable.
+The summaries are on by default and can be hidden with the
+`hideCallSummariesInTui` option in `~/.pi/agent/formatter.json`.
+The previous `PI_FORMAT_SHOW_CALL_SUMMARIES_IN_TUI` environment variable is no
+longer used.
 
 Runner IDs now match actual tool names (e.g., `biome` instead of
 `biome-check-write`) so the output is immediately recognizable. File kinds

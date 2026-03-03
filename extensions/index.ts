@@ -1,6 +1,6 @@
 import { basename } from "node:path";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { commandTimeoutMs, showCallSummariesInTui } from "./format/config.js";
+import { commandTimeoutMs, hideCallSummariesInTui } from "./format/config.js";
 import { type FormatCallSummary, formatFile } from "./format/dispatch.js";
 import { getPathForGit, pathExists, resolveToolPath } from "./format/path.js";
 import type { SourceTool } from "./format/types.js";
@@ -76,7 +76,7 @@ export default function (pi: ExtensionAPI) {
       return;
     }
 
-    const showSummaries = showCallSummariesInTui && ctx.hasUI;
+    const showSummaries = !hideCallSummariesInTui && ctx.hasUI;
     const notifyWarning = (message: string) => {
       const normalizedMessage = message.replace(/\s+/g, " ").trim();
 
