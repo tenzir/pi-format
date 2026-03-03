@@ -1,0 +1,4 @@
+.pi/npm/
+node_modules/
+dist/
+*.tgz

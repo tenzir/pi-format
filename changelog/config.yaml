@@ -1,0 +1,5 @@
+id: pi-format
+name: Pi Format
+description: >-
+  Language-agnostic formatting hooks for Pi write/edit operations.
+repository: tenzir/pi-format

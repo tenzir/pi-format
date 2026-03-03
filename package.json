@@ -1,0 +1,40 @@
+{
+  "name": "pi-format",
+  "version": "0.1.0",
+  "description": "Pi extension that auto-formats files after write/edit tool calls.",
+  "type": "module",
+  "files": [
+    "extensions",
+    "DOCUMENTATION.md",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "coding-agent",
+    "formatter",
+    "formatting"
+  ],
+  "author": "Tenzir",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tenzir/pi-format.git"
+  },
+  "homepage": "https://github.com/tenzir/pi-format#readme",
+  "bugs": {
+    "url": "https://github.com/tenzir/pi-format/issues"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "pi": {
+    "extensions": [
+      "./extensions/index.ts"
+    ]
+  }
+}
