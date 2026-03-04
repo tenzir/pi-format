@@ -1,9 +1,16 @@
 import { basename } from "node:path";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { commandTimeoutMs, hideCallSummariesInTui } from "./format/config.js";
-import { type FormatCallSummary, formatFile } from "./format/dispatch.js";
-import { getPathForGit, pathExists, resolveToolPath } from "./format/path.js";
-import type { SourceTool } from "./format/types.js";
+import {
+  commandTimeoutMs,
+  hideCallSummariesInTui,
+} from "./formatter/config.js";
+import { type FormatCallSummary, formatFile } from "./formatter/dispatch.js";
+import {
+  getPathForGit,
+  pathExists,
+  resolveToolPath,
+} from "./formatter/path.js";
+import type { SourceTool } from "./formatter/types.js";
 
 function formatError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);

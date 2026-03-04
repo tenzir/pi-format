@@ -1,7 +1,7 @@
 # 🎨 pi-formatter
 
-A [pi](https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent)
-extension that auto-formats files after every `write` and `edit` tool call.
+A [pi](https://pi.dev) extension that auto-formats files after every `write` and
+`edit` tool call.
 
 The extension hooks into successful tool results, detects the file type, and
 runs the appropriate formatter. Failures never block the tool result, so
@@ -30,7 +30,7 @@ Supported file types:
 
 ## 🔧 Configuration
 
-Create `~/.pi/agent/formatter.json`:
+Create `~/.pi/agent/formatter.json` (fixed location):
 
 ```json
 {
@@ -42,9 +42,20 @@ Create `~/.pi/agent/formatter.json`:
 - `commandTimeoutMs`: timeout (ms) per formatter command (default: `10000`)
 - `hideCallSummariesInTui`: hide formatter pass/fail summaries in the TUI (default: `false`)
 
-## 🧩 Contributor docs
+`PI_CODING_AGENT_DIR` is not used by this extension.
 
-See the [runner API contract](DOCUMENTATION.md) for how to add new formatters.
+## 🧩 Adding formatters
+
+Each formatter is a _runner_ that wraps a CLI tool behind a common interface.
+To add one:
+
+1. Create a file in `extensions/formatter/runners/` using `defineRunner` and a
+   launcher helper (`direct`, `pypi`, or `goTool`).
+2. Register it in `extensions/formatter/runners/index.ts`.
+3. Add its id to a group in `extensions/formatter/plan.ts`.
+
+The format plan maps file kinds to ordered runner groups. Each group runs in
+`"all"` mode (every runner) or `"fallback"` mode (first match wins).
 
 ## 📄 License
 
