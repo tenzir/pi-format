@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
-import { homedir } from "node:os";
 import { join } from "node:path";
+import { getAgentDir } from "@mariozechner/pi-coding-agent";
 
 const DEFAULT_COMMAND_TIMEOUT_MS = 10_000;
 const DEFAULT_HIDE_CALL_SUMMARIES_IN_TUI = false;
@@ -12,7 +12,7 @@ type FormatterConfig = {
 };
 
 function getFormatterConfigPath(): string {
-  return join(homedir(), ".pi", "agent", FORMATTER_CONFIG_FILE);
+  return join(getAgentDir(), FORMATTER_CONFIG_FILE);
 }
 
 function readJsonObject(filePath: string): Record<string, unknown> | undefined {

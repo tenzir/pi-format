@@ -3,12 +3,7 @@ import { dirname, join, resolve } from "node:path";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { getPathForGit, isWithinDirectory, pathExists } from "./path.js";
 import { hasCommand } from "./system.js";
-import type {
-  FileKind,
-  RequiredMajorVersion,
-  RunnerContext,
-  SourceTool,
-} from "./types.js";
+import type { FileKind, RequiredMajorVersion, RunnerContext } from "./types.js";
 
 const globRegexCache = new Map<string, RegExp>();
 
@@ -71,12 +66,39 @@ async function findConfigFileFromPath(
   return undefined;
 }
 
+function getLineRangesFromDiff(diffOutput: string): string[] {
+  const ranges: string[] = [];
+
+  for (const line of diffOutput.split(/\r?\n/)) {
+    const match = line.match(/^@@ .* \+([0-9]+)(?:,([0-9]+))? @@/);
+    if (!match) {
+      continue;
+    }
+
+    const start = Number.parseInt(match[1], 10);
+    const count = match[2] ? Number.parseInt(match[2], 10) : 1;
+
+    if (!Number.isFinite(start) || !Number.isFinite(count) || count <= 0) {
+      continue;
+    }
+
+    ranges.push(`${start}:${start + count - 1}`);
+  }
+
+  return ranges;
+}
+
+function compareLineRanges(a: string, b: string): number {
+  const [aStart] = a.split(":", 1);
+  const [bStart] = b.split(":", 1);
+  return Number.parseInt(aStart, 10) - Number.parseInt(bStart, 10);
+}
+
 export type FormatWarningReporter = (message: string) => void;
 
 export class FormatRunContext implements RunnerContext {
   readonly filePath: string;
   readonly cwd: string;
-  readonly sourceTool: SourceTool;
   readonly kind: FileKind;
 
   private readonly pi: ExtensionAPI;
@@ -103,7 +125,6 @@ export class FormatRunContext implements RunnerContext {
     pi: ExtensionAPI,
     cwd: string,
     filePath: string,
-    sourceTool: SourceTool,
     kind: FileKind,
     timeoutMs: number,
     warningReporter?: FormatWarningReporter,
@@ -111,7 +132,6 @@ export class FormatRunContext implements RunnerContext {
     this.pi = pi;
     this.cwd = cwd;
     this.filePath = filePath;
-    this.sourceTool = sourceTool;
     this.kind = kind;
     this.timeoutMs = timeoutMs;
     this.warningReporter = warningReporter;
@@ -148,14 +168,10 @@ export class FormatRunContext implements RunnerContext {
   }
 
   async exec(command: string, args: string[]) {
-    try {
-      return await this.pi.exec(command, args, {
-        cwd: this.cwd,
-        timeout: this.timeoutMs,
-      });
-    } catch {
-      return undefined;
-    }
+    return this.pi.exec(command, args, {
+      cwd: this.cwd,
+      timeout: this.timeoutMs,
+    });
   }
 
   async getChangedLines(): Promise<string[]> {
@@ -224,37 +240,25 @@ export class FormatRunContext implements RunnerContext {
 
   private async resolveChangedLines(): Promise<string[]> {
     const gitPath = getPathForGit(this.filePath, this.cwd);
-    const diffResult = await this.exec("git", [
-      "diff",
-      "--cached",
-      "--unified=0",
-      "--",
-      gitPath,
-    ]);
+    const rangeSet = new Set<string>();
 
-    if (!diffResult || diffResult.code !== 0) {
-      return [];
-    }
+    const diffArgSets = [
+      ["diff", "--unified=0", "--", gitPath],
+      ["diff", "--cached", "--unified=0", "--", gitPath],
+    ];
 
-    const ranges: string[] = [];
-
-    for (const line of diffResult.stdout.split(/\r?\n/)) {
-      const match = line.match(/^@@ .* \+([0-9]+)(?:,([0-9]+))? @@/);
-      if (!match) {
+    for (const args of diffArgSets) {
+      const diffResult = await this.exec("git", args);
+      if (diffResult.code !== 0) {
         continue;
       }
 
-      const start = Number.parseInt(match[1], 10);
-      const count = match[2] ? Number.parseInt(match[2], 10) : 1;
-
-      if (!Number.isFinite(start) || !Number.isFinite(count) || count <= 0) {
-        continue;
+      for (const range of getLineRangesFromDiff(diffResult.stdout)) {
+        rangeSet.add(range);
       }
-
-      ranges.push(`${start}:${start + count - 1}`);
     }
 
-    return ranges;
+    return [...rangeSet].sort(compareLineRanges);
   }
 
   private async resolveRequiredMajorVersionFromConfig(
@@ -283,7 +287,7 @@ export class FormatRunContext implements RunnerContext {
     command: string,
   ): Promise<string | undefined> {
     const result = await this.exec(command, ["--version"]);
-    if (!result || result.code !== 0) {
+    if (result.code !== 0) {
       return undefined;
     }
 

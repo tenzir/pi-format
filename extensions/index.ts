@@ -1,5 +1,9 @@
 import { basename } from "node:path";
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import {
+  type ExtensionAPI,
+  isEditToolResult,
+  isWriteToolResult,
+} from "@mariozechner/pi-coding-agent";
 import {
   commandTimeoutMs,
   hideCallSummariesInTui,
@@ -10,7 +14,6 @@ import {
   pathExists,
   resolveToolPath,
 } from "./formatter/path.js";
-import type { SourceTool } from "./formatter/types.js";
 
 function formatError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -67,16 +70,15 @@ export default function (pi: ExtensionAPI) {
       return;
     }
 
-    if (event.toolName !== "write" && event.toolName !== "edit") {
+    if (!isWriteToolResult(event) && !isEditToolResult(event)) {
       return;
     }
 
-    const rawPath = (event.input as { path?: unknown }).path;
-    if (typeof rawPath !== "string" || rawPath.length === 0) {
+    const rawPath = event.input.path;
+    if (rawPath.length === 0) {
       return;
     }
 
-    const sourceTool = event.toolName as SourceTool;
     const filePath = resolveToolPath(rawPath, ctx.cwd);
 
     if (!(await pathExists(filePath))) {
@@ -114,7 +116,6 @@ export default function (pi: ExtensionAPI) {
         await formatFile(
           pi,
           ctx.cwd,
-          sourceTool,
           filePath,
           commandTimeoutMs,
           summaryReporter,

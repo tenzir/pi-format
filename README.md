@@ -28,9 +28,13 @@ Supported file types:
 - Python
 - JavaScript/TypeScript
 
+For JS/TS and JSON, project-configured tools are preferred first (Biome,
+ESLint), with Prettier as a fallback.
+
 ## 🔧 Configuration
 
-Create `~/.pi/agent/formatter.json` (fixed location):
+Create `<agent-dir>/formatter.json`, where `<agent-dir>` is pi's agent config
+folder (default: `~/.pi/agent`, overridable via `PI_CODING_AGENT_DIR`):
 
 ```json
 {
@@ -41,8 +45,6 @@ Create `~/.pi/agent/formatter.json` (fixed location):
 
 - `commandTimeoutMs`: timeout (ms) per formatter command (default: `10000`)
 - `hideCallSummariesInTui`: hide formatter pass/fail summaries in the TUI (default: `false`)
-
-`PI_CODING_AGENT_DIR` is not used by this extension.
 
 ## 🧩 Adding formatters
 

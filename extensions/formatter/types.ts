@@ -1,7 +1,5 @@
 import type { ExecResult } from "@mariozechner/pi-coding-agent";
 
-export type SourceTool = "write" | "edit";
-
 export type FileKind =
   | "cxx"
   | "cmake"
@@ -40,7 +38,6 @@ export interface ResolvedLauncher {
 export interface RunnerContext {
   readonly filePath: string;
   readonly cwd: string;
-  readonly sourceTool: SourceTool;
   readonly kind: FileKind;
 
   hasCommand(command: string): Promise<boolean>;
@@ -48,7 +45,7 @@ export interface RunnerContext {
   findConfigFile(patterns: readonly string[]): Promise<string | undefined>;
   hasEditorConfigInCwd(): Promise<boolean>;
 
-  exec(command: string, args: string[]): Promise<ExecResult | undefined>;
+  exec(command: string, args: string[]): Promise<ExecResult>;
   getChangedLines(): Promise<string[]>;
   getRequiredMajorVersionFromConfig(
     patterns: readonly string[],
@@ -94,8 +91,9 @@ export interface StaticRunnerDefinition extends RunnerBase {
 }
 
 export interface DynamicRunnerDefinition extends RunnerBase {
-  buildArgs:
-    (ctx: RunnerContext) => Promise<string[] | undefined> | string[] | undefined;
+  buildArgs: (
+    ctx: RunnerContext,
+  ) => Promise<string[] | undefined> | string[] | undefined;
 }
 
 export type RunnerDefinition = StaticRunnerDefinition | DynamicRunnerDefinition;

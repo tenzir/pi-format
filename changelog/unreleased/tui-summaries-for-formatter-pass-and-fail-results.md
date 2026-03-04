@@ -14,7 +14,8 @@ every `write` and `edit` tool call:
 - `✘ biome: expected '}' but instead the file ends` on failure
 
 The summaries are on by default and can be hidden with the
-`hideCallSummariesInTui` option in `~/.pi/agent/formatter.json`.
+`hideCallSummariesInTui` option in `<agent-dir>/formatter.json`
+(default: `~/.pi/agent/formatter.json`, overridable via `PI_CODING_AGENT_DIR`).
 The previous `PI_FORMAT_SHOW_CALL_SUMMARIES_IN_TUI` environment variable is no
 longer used.
 

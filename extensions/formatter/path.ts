@@ -3,8 +3,17 @@ import { homedir } from "node:os";
 import { basename, isAbsolute, join, relative, resolve } from "node:path";
 import type { FileKind } from "./types.js";
 
+const UNICODE_SPACES = /[\u00A0\u2000-\u200A\u202F\u205F\u3000]/g;
+
+function normalizeUnicodeSpaces(value: string): string {
+  return value.replace(UNICODE_SPACES, " ");
+}
+
 export function normalizeToolPath(filePath: string): string {
-  const normalizedAt = filePath.startsWith("@") ? filePath.slice(1) : filePath;
+  const normalizedInput = normalizeUnicodeSpaces(filePath);
+  const normalizedAt = normalizedInput.startsWith("@")
+    ? normalizedInput.slice(1)
+    : normalizedInput;
 
   if (normalizedAt === "~") {
     return homedir();
@@ -33,7 +42,10 @@ export async function pathExists(path: string): Promise<boolean> {
   }
 }
 
-export function isWithinDirectory(pathToCheck: string, directory: string): boolean {
+export function isWithinDirectory(
+  pathToCheck: string,
+  directory: string,
+): boolean {
   const relPath = relative(directory, pathToCheck);
   return (
     relPath === "" ||
@@ -57,7 +69,11 @@ export function getPathForGit(filePath: string, cwd: string): string {
 }
 
 export function detectFileKind(filePath: string): FileKind | undefined {
-  if (/\.(cpp|hpp|cpp\.in|hpp\.in)$/.test(filePath)) {
+  if (
+    /(\.(c|h|cc|hh|cpp|hpp|cxx|hxx|ixx|ipp|inl|tpp)|\.(c|h|cc|hh|cpp|hpp|cxx|hxx)\.in)$/i.test(
+      filePath,
+    )
+  ) {
     return "cxx";
   }
 

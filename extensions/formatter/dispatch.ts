@@ -10,7 +10,6 @@ import {
   type RunnerDefinition,
   type RunnerGroup,
   type RunnerLauncher,
-  type SourceTool,
 } from "./types.js";
 
 async function resolveLauncher(
@@ -137,10 +136,15 @@ export interface FormatCallSummary {
 export type FormatCallSummaryReporter = (summary: FormatCallSummary) => void;
 
 const MAX_FAILURE_MESSAGE_LENGTH = 140;
+const ANSI_ESCAPE = String.fromCharCode(27);
+const ANSI_COLOR_SEQUENCE_PATTERN = new RegExp(
+  `${ANSI_ESCAPE}\\[[0-9;]*m`,
+  "g",
+);
 
 function normalizeFailureLine(line: string): string {
   return line
-    .replace(/\x1b\[[0-9;]*m/g, "")
+    .replace(ANSI_COLOR_SEQUENCE_PATTERN, "")
     .replace(/^\s*\[error\]\s*/i, "")
     .replace(/^\s*error:\s*/i, "")
     .replace(/^\s*[×✖✘]\s*/u, "")
@@ -194,14 +198,6 @@ async function runRunner(
   const commandArgs = [...launcher.argsPrefix, ...args];
 
   const result = await ctx.exec(launcher.command, commandArgs);
-  if (!result) {
-    summaryReporter?.({
-      runnerId: runner.id,
-      status: "failed",
-    });
-    ctx.warn(`${runner.id} failed to execute`);
-    return "failed";
-  }
 
   if (result.code !== 0) {
     const failureMessage = summarizeFailureMessage(result);
@@ -293,7 +289,6 @@ async function runRunnerGroup(
 export async function formatFile(
   pi: ExtensionAPI,
   cwd: string,
-  sourceTool: SourceTool,
   filePath: string,
   timeoutMs: number,
   summaryReporter?: FormatCallSummaryReporter,
@@ -313,7 +308,6 @@ export async function formatFile(
     pi,
     cwd,
     filePath,
-    sourceTool,
     kind,
     timeoutMs,
     warningReporter,
