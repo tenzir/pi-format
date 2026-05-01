@@ -23,6 +23,7 @@ import {
   isPathInFormattingScope,
   resolveToolPath,
 } from "./formatter/path.js";
+import { initI18n, t } from "./i18n.js";
 
 function normalizeSummaryMessage(message: string): string {
   return message.replace(/\s+/g, " ").trim();
@@ -110,6 +111,8 @@ type FormatterContext = {
 };
 
 export default function (pi: ExtensionAPI) {
+  initI18n(pi);
+
   let formatterConfig = loadFormatterConfig();
   const formatQueueByPath = new Map<string, Promise<void>>();
   const pendingPromptPaths = new Set<string>();
@@ -197,7 +200,12 @@ export default function (pi: ExtensionAPI) {
         );
       } catch (error) {
         const fileLabel = getRelativePathOrAbsolute(filePath, ctx.cwd);
-        notifyWarning(`Failed to format ${fileLabel}: ${formatError(error)}`);
+        notifyWarning(
+          t("formatter.failedToFormat", "Failed to format {file}: {message}", {
+            file: fileLabel,
+            message: formatError(error),
+          }),
+        );
       }
 
       if (!showSummaries || summaries.length === 0) {
@@ -297,7 +305,12 @@ export default function (pi: ExtensionAPI) {
     description: "Configure formatter behavior.",
     handler: async (_args, ctx) => {
       if (!ctx.hasUI) {
-        console.warn("/formatter requires interactive UI mode");
+        console.warn(
+          t(
+            "formatter.requiresTui",
+            "/formatter requires interactive UI mode",
+          ),
+        );
         return;
       }
 
@@ -353,7 +366,11 @@ export default function (pi: ExtensionAPI) {
                   const message =
                     error instanceof Error ? error.message : String(error);
                   ctx.ui.notify(
-                    `Failed to flush pending formats: ${message}`,
+                    t(
+                      "formatter.failedFlush",
+                      "Failed to flush pending formats: {message}",
+                      { message },
+                    ),
                     "error",
                   );
                 });
@@ -365,7 +382,14 @@ export default function (pi: ExtensionAPI) {
               draft.hideCallSummariesInTui = previous.hideCallSummariesInTui;
               draft.formatMode = previous.formatMode;
               syncDraftToSettingsList(settingsList);
-              ctx.ui.notify(`Failed to save config: ${message}`, "error");
+              ctx.ui.notify(
+                t(
+                  "formatter.failedSave",
+                  "Failed to save config: {message}",
+                  { message },
+                ),
+                "error",
+              );
             }
           },
           () => {
